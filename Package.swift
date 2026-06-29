@@ -79,10 +79,16 @@ let targets: [Target] = [
 //            .product(name: "Subprocess", package: "swift-subprocess", condition: .when(platforms: [.macOS, .linux]))
 //        ],
         path: "Sources/SwiftTerm",
-        exclude: platformExcludes + ["Mac/README.md"],
-        resources: [
-            .process("Apple/Metal/Shaders.metal")
-        ]
+        // Bifrost-ing fork: EXCLUDE the Metal shader so the build needs no Metal
+        // toolchain (the mini's boot disk is tight; CI/fresh-clone shouldn't need
+        // it either). SwiftTerm renders via CoreText by default (useMetalRenderer
+        // = false); the experimental GPU path is opt-in and unused, so the shader's
+        // absence is harmless — the Swift Metal code still compiles, it just never
+        // loads the (now-absent) compiled shader.
+        exclude: platformExcludes + ["Mac/README.md", "Apple/Metal/Shaders.metal"],
+        // Placeholder keeps SwiftPM generating Bundle.module (MetalTerminalRenderer
+        // references it) now that the .metal shader is excluded.
+        resources: [.copy("MetalDisabled.txt")]
 //        swiftSettings: [
 //            .unsafeFlags(["-enforce-exclusivity=none"])
 //        ]

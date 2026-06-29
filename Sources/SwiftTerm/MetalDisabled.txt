@@ -1,0 +1,4 @@
+Bifrost-ing fork: the Metal GPU renderer's shader (Apple/Metal/Shaders.metal) is
+excluded from the build so no Metal toolchain is needed. This placeholder resource
+keeps SwiftPM generating Bundle.module (referenced by MetalTerminalRenderer). The
+default CoreText renderer is unaffected; the experimental Metal path is unused.
