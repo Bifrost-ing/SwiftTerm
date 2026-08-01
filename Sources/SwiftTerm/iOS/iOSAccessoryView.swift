@@ -216,7 +216,14 @@ public class TerminalAccessory: UIInputView, UIInputViewAudioFeedback {
         touchButton = makeButton ("", #selector(toggleTouch), icon: "hand.draw", isNormal: false)
         touchButton.isSelected = terminalView?.allowMouseReporting ?? false
         rightViews.append (touchButton)
-        keyboardButton = makeButton ("", #selector(toggleInputKeyboard), icon: "keyboard.chevron.compact.down", isNormal: false)
+        // Bifrost-ing fork: NOT `keyboard.chevron.compact.down`. That glyph is the
+        // system's universal "dismiss the keyboard" affordance, and this button does
+        // not dismiss anything — `toggleInputKeyboard` swaps the system keyboard for
+        // SwiftTerm's own key panel and back, so the keyboard is up either way. Wearing
+        // the dismiss icon made it the first thing a phone user taps to get their
+        // screen back, and it never works. `keyboard` says "another keyboard", which is
+        // what it does. (iOS 14 floor here, so no `keyboard.badge.*` glyph.)
+        keyboardButton = makeButton ("", #selector(toggleInputKeyboard), icon: "keyboard", isNormal: false)
         rightViews.append (keyboardButton)
 
         // calculate aditional space we can give to keys we want to be bigger (all top level except function keys)
