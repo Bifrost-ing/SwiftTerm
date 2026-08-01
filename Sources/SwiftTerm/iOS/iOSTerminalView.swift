@@ -719,6 +719,40 @@ open class TerminalView: UIScrollView, UITextInputTraits, UIKeyInput, UIScrollVi
         gestureRecognizer.modifierFlags.contains(.shift) && !terminal.mouseShiftCapture
     }
 
+    /// Bifrost-ing fork: give touch a route to a link.
+    ///
+    /// Under `.hover` — the iOS default — `linkVisibleForClick` only lets a link
+    /// activate while `linkHighlightRange` already equals the match, and that range is
+    /// written ONLY by the hover recognizer, the pointer interaction, or a hardware
+    /// Command key. A finger produces none of those, so `singleTap`'s link branch could
+    /// never fire on a phone: implicit links were detected, drawn and unreachable.
+    ///
+    /// Rather than make one tap activate, the FIRST tap does the job hover does — it
+    /// highlights the link and nothing else — and a second tap on the same link passes
+    /// the existing gate and opens it. Two stages because terminal output is full of
+    /// text matching the implicit path pattern, and a single tap that both positions the
+    /// cursor and opened a file would fire by accident constantly.
+    ///
+    /// It never swallows the tap: normal handling continues, so mouse reporting,
+    /// selection and the context menu are unchanged. Tapping anywhere that is not a link
+    /// clears the highlight, so an armed link cannot be activated later by a tap that
+    /// happens to land on it. On an iPad with a pointer, hover has already armed the
+    /// link, so the first tap opens it — no special case needed.
+    private func armLinkForTouch (at position: Position)
+    {
+        // Only the hover mode gates on the range. `.always`/`.alwaysWithModifier`
+        // activate on `match.isExplicit` alone, so arming would change nothing, and
+        // `.hoverWithModifier` still needs a Command key a finger cannot supply.
+        guard linkHighlightMode == .hover else { return }
+
+        let newRange = terminal.linkMatch(at: .buffer(position), mode: .explicitAndImplicit)?.rowRanges
+        guard newRange != linkHighlightRange else { return }
+        let oldRange = linkHighlightRange
+        linkHighlightRange = newRange
+        invalidateLinkHighlight(oldRange: oldRange, newRange: newRange)
+        queuePendingDisplay()
+    }
+
     @objc func singleTap (_ gestureRecognizer: UITapGestureRecognizer)
     {
         if isFirstResponder {
@@ -733,6 +767,9 @@ open class TerminalView: UIScrollView, UITextInputTraits, UIKeyInput, UIScrollVi
                 terminalDelegate?.requestOpenLink(source: self, link: result.link, params: result.params)
                 return
             }
+            // A finger cannot hover, so without this the branch above is dead on a
+            // touch device — see `armLinkForTouch`.
+            armLinkForTouch(at: tapHit)
 
             if allowMouseReporting && !shiftBypassesMouseReporting(for: gestureRecognizer) && terminal.mouseMode.sendButtonPress() {
                 sharedMouseEvent(gestureRecognizer: gestureRecognizer, release: false)
