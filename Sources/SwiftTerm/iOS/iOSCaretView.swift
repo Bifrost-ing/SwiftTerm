@@ -62,21 +62,24 @@ class CaretView: UIView {
         updateCursorStyle ();
     }
     
+    private var blinkTimer: Timer?
+
+    // A timer that flips the opacity, not a repeating animation: an animation that never
+    // ends keeps the app from ever going idle, which is a constant render-server cost
+    // and stalls UI automation for as long as a terminal has focus.
     func updateAnimation (to: Bool) {
         layer.removeAllAnimations()
+        blinkTimer?.invalidate()
+        blinkTimer = nil
         self.layer.opacity = 1
         if window == nil {
             return
         }
         if to {
-            UIView.animate(withDuration: 0.7, delay: 0, options: [.autoreverse, .repeat, .curveEaseIn], animations: {
-                self.layer.opacity = 0.0
-            }, completion: { [weak self] done in
-                // Attempt again, could be the window transitioning
-                if done {
-                    self?.updateAnimation(to: to)
-                }
-            })
+            blinkTimer = Timer.scheduledTimer(withTimeInterval: 0.7, repeats: true) { [weak self] _ in
+                guard let self else { return }
+                self.layer.opacity = self.layer.opacity > 0.5 ? 0 : 1
+            }
         }
     }
     
@@ -93,7 +96,9 @@ class CaretView: UIView {
     func updateCursorStyle () {
         switch style {
         case .blinkUnderline, .blinkBlock, .blinkBar:
-            updateAnimation(to: true)
+            // Blink only with focus. Started from didMoveToWindow, every terminal in
+            // the window blinked forever, hidden or not, and the app never went idle.
+            updateAnimation(to: !tracksFocus || (superview?.isFirstResponder ?? false))
         case .steadyBar, .steadyBlock, .steadyUnderline:
             updateAnimation(to: false)
         }
@@ -102,6 +107,8 @@ class CaretView: UIView {
     
     func disableAnimations() {
         layer.removeAllAnimations()
+        blinkTimer?.invalidate()
+        blinkTimer = nil
         layer.opacity = 1
     }
     
