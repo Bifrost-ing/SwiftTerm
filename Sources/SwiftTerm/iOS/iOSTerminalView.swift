@@ -1541,7 +1541,10 @@ open class TerminalView: UIScrollView, UITextInputTraits, UIKeyInput, UIScrollVi
         #if os(visionOS)
         1.0
         #else
-        UIScreen.main.scale
+        // The display this view is on, not UIScreen.main: on a device with two
+        // displays (iPhone Duo) or an external screen, "main" may not be it.
+        let scale = traitCollection.displayScale
+        return scale > 0 ? scale : UIScreen.main.scale
         #endif
     }
     
